@@ -5,7 +5,7 @@ static const size_t MinCapacity    = 64;
 static const int POISON            = 0xDEAD;
 static const size_t ExtraInfoShift = 1;
 
-static inline void ListDataInit            (ListType* list);
+static inline void ListDataCtor            (ListType* list);
 static inline void MoveFreeBlockHeadForward(ListType* list);
 static inline void MoveFreeBlockHeadBack   (ListType* list, const size_t newPos);
 
@@ -40,7 +40,7 @@ ListErrors ListCtor(ListType* list, const size_t listStandardCapacity)
         return ListErrors::MEMORY_ERR;
     }
 
-    ListDataInit(list);
+    ListDataCtor(list);
 
     list->head           = 0;
     list->tail           = 0;
@@ -230,7 +230,7 @@ ListErrors ListErase (ListType* list, const size_t anchorPos)
     return ListErrors::NO_ERR;
 }
 
-static inline void ListDataInit(ListType* list)
+static inline void ListDataCtor(ListType* list)
 {
     assert(list);
 
