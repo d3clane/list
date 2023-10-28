@@ -40,7 +40,7 @@ enum class ListErrors
 
 //for listInsert push back
 #define LIST_END SIZE_MAX
-void ListElemCtor(ListElemType* elem, const size_t value, 
+void ListElemInit(ListElemType* elem, const size_t value, 
                                       const size_t prevPos, 
                                       const size_t nextPos);
 

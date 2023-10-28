@@ -86,7 +86,7 @@ ListErrors ListVerify(ListType* list)
         list->data[0].prevPos != 0      || list->data[0].nextPos != 0)
     {
         //printf("val, prev, next: %d, %d, %d\n", list->data->value, list->data->prevPos, list->data->nextPos);
-        
+
         LOG_ERR(ListErrors::INVALID_NULLPTR);
     }
 
@@ -169,7 +169,7 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const size_t value
     if (anchorPos == LIST_END)
     {
         //printf("zero next pos: %d\n", list->data->nextPos);
-        ListElemCtor(&list->data[newValPos], value, list->tail, 0);
+        ListElemInit(&list->data[newValPos], value, list->tail, 0);
 
         if (list->tail != 0)
             list->data[list->tail].nextPos = newValPos;
@@ -178,7 +178,7 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const size_t value
     }
     else
     {
-        ListElemCtor(&list->data[newValPos], 
+        ListElemInit(&list->data[newValPos], 
                      value, list->data[anchorPos].prevPos, anchorPos);
         //printf("zero next pos: %d\n", list->data->nextPos);
 
@@ -234,15 +234,15 @@ static inline void ListDataInit(ListType* list)
 {
     assert(list);
 
-    ListElemCtor(&list->data[0], POISON, 0, 0);
+    ListElemInit(&list->data[0], POISON, 0, 0);
 
     for (size_t i = 1; i < list->capacity - 1; ++i)
-        ListElemCtor(&list->data[i], POISON, i - 1, i + 1);
+        ListElemInit(&list->data[i], POISON, i - 1, i + 1);
 
-    ListElemCtor(&list->data[list->capacity - 1], POISON, list->capacity - 2, 0);
+    ListElemInit(&list->data[list->capacity - 1], POISON, list->capacity - 2, 0);
 }
 
-void ListElemCtor(ListElemType* elem, const size_t value, 
+void ListElemInit(ListElemType* elem, const size_t value, 
                                       const size_t prevPos, 
                                       const size_t nextPos)
 {
@@ -283,13 +283,13 @@ static inline void MoveFreeBlockHeadBack(ListType* list, const size_t newPos)
     if (list->freeBlockHead == 0)
     {
         list->freeBlockHead = newPos;
-        ListElemCtor(&list->data[list->freeBlockHead], POISON, 0, 0);
+        ListElemInit(&list->data[list->freeBlockHead], POISON, 0, 0);
 
         return;
     }
 
     //do not change order!
     list->data[list->freeBlockHead].prevPos = newPos;
-    ListElemCtor(&list->data[newPos], POISON, 0, list->freeBlockHead);
+    ListElemInit(&list->data[newPos], POISON, 0, list->freeBlockHead);
     list->freeBlockHead = newPos;
 }
