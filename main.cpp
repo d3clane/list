@@ -1,7 +1,10 @@
 #include "List.h"
+#include "Log.h"
 
-int main()
+int main(const int argc, const char* argv[])
 {
+    LogOpen(argv[0]);
+
     ListType list;
     ListCtor(&list);
 
@@ -38,6 +41,8 @@ int main()
     //printf("lastPos: %d\n", lastPos);
 
     ListErase(&list, newLastPos);
-    
+
     LIST_DUMP(&list);
+
+    ListDtor(&list);
 }

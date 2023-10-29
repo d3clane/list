@@ -127,11 +127,9 @@ void ListDump(const ListType* list, const char* fileName,
     assert(fileName);
     assert(funcName);
     
-    LOG_BEGIN();
+    LogBegin(fileName, funcName, line);
 
     static const size_t numberOfElementsToPrint = 16;
-
-    Log("Dump called from file: %s, func: %s, line %d\n", fileName, funcName, line);
 
     Log("List head: %zu, list tail: %zu\n", list->head, list->tail);
     Log("Free blocks head: %zu\n", list->freeBlockHead);
@@ -148,13 +146,13 @@ void ListDump(const ListType* list, const char* fileName,
             i, list->data[i].value, list->data[i].prevPos, list->data[i].nextPos);
     }
 
-    Log("...\n");
+    Log("\t...\n");
 
     //-----Print list-------
 
     Log("List:\n");
 
-    for (size_t i = list->head; i != list->tail; ++i)
+    for (size_t i = list->head; i != list->tail; i = list->data[i].nextPos)
     {
         Log("\tElement id: %zu, value: %d, previous position: %zu, next position: %zu\n",
             i, list->data[i].value, list->data[i].prevPos, list->data[i].nextPos);
