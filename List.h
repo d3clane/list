@@ -30,7 +30,7 @@ enum class ListErrors
 
     MEMORY_ERR,
 
-    DATA_ERR,
+    DATA_IS_NULLPTR,
     OUT_OF_RANGE,
 
     INVALID_NULLPTR,
@@ -51,9 +51,9 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
                       size_t* insertedValPos);
 ListErrors ListErase (ListType* list, const size_t anchorPos);
 #define LIST_DUMP(list) ListDump((list), __FILE__, __func__, __LINE__)
-void ListDump  (ListType* list, const char* fileName,
-                                      const char* funcName,
-                                      const int   line);
+void ListDump(const ListType* list, const char* fileName,
+                                    const char* funcName,
+                                    const int   line);
 
 #define LIST_ERRORS_LOG_ERROR(error) ListErrorsLogError((error), __FILE__, __func__, __LINE__)
 void ListErrorsLogError(ListErrors error, const char* fileName,

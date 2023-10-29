@@ -1,6 +1,8 @@
 #include <assert.h>
 
+#include "Log.h"
 #include "List.h"
+
 static const size_t MinCapacity    = 64;
 static const int POISON            = 0xDEAD;
 static const size_t ExtraInfoShift = 1;
@@ -77,7 +79,7 @@ ListErrors ListVerify(ListType* list)
     assert(list);
 
     if (list->data == nullptr)
-        LOG_ERR(ListErrors::DATA_ERR);
+        LOG_ERR(ListErrors::DATA_IS_NULLPTR);
     
     if (list->capacity < list->size)
         LOG_ERR(ListErrors::OUT_OF_RANGE);
@@ -117,26 +119,50 @@ ListErrors ListVerify(ListType* list)
     return ListErrors::NO_ERR;
 }
 
-void ListDump  (ListType* list, const char* fileName,
-                                const char* funcName,
-                                const int   line)
+void ListDump(const ListType* list, const char* fileName,
+                                    const char* funcName,
+                                    const int   line)
 {
     assert(list);
     assert(fileName);
     assert(funcName);
     
-    printf("Line: %d\n", line);
-    printf("free head: %d\n", list->freeBlockHead);
-    printf("head: %d, tail: %d\n", list->head, list->tail);
-    for (size_t i = 0; i < list->capacity; ++i)
+    LOG_BEGIN();
+
+    static const size_t numberOfElementsToPrint = 16;
+
+    Log("Dump called from file: %s, func: %s, line %d\n", fileName, funcName, line);
+
+    Log("List head: %zu, list tail: %zu\n", list->head, list->tail);
+    Log("Free blocks head: %zu\n", list->freeBlockHead);
+
+    Log("List capacity: %zu\n", list->capacity);
+
+    //-----Print all data----
+
+    Log("Data[%p]:\n", list->data);
+    
+    for (size_t i = 0; i < numberOfElementsToPrint && i < list->capacity; ++i)
     {
-        printf("%lu: value: %d prevPos: %d, nextPos: %d\n", i, list->data[i].value, list->data[i].prevPos, list->data[i].nextPos);
+        Log("\tElement id: %zu, value: %d, previous position: %zu, next position: %zu\n",
+            i, list->data[i].value, list->data[i].prevPos, list->data[i].nextPos);
     }
-    /*for (size_t i = list->head; i != list->tail; i = list->data[list->head].nextPos)
+
+    Log("...\n");
+
+    //-----Print list-------
+
+    Log("List:\n");
+
+    for (size_t i = list->head; i != list->tail; ++i)
     {
-        printf("%lu: value: %d prevPos: %d, nextPos: %d\n", i, list->data[i].value, list->data[i].prevPos, list->data[i].nextPos);
-    }*/
-    //TODO: 
+        Log("\tElement id: %zu, value: %d, previous position: %zu, next position: %zu\n",
+            i, list->data[i].value, list->data[i].prevPos, list->data[i].nextPos);
+    }
+
+    Log("\tLast element: %zu, value: %d, previous position: %zu, next position: %zu\n",
+         list->tail, list->data[list->tail].value, 
+         list->data[list->tail].prevPos, list->data[list->tail].nextPos);
 }
 
 ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value, 
@@ -257,7 +283,35 @@ void ListErrorsLogError(ListErrors error, const char* fileName,
                                           const char* funcName,
                                           const int   line)
 {
-    //TODO: 
+    assert(fileName);
+    assert(funcName);
+
+    Log(HTML_RED_HEAD_BEGIN
+        "Logging errors called from file: %s, func: %s, line: %d"
+        HTML_HEAD_END, fileName, funcName, line);
+
+    switch(error)
+    {
+        case ListErrors::DATA_IS_NULLPTR:
+            Log("Data is nullptr\n");
+            break;
+        case ListErrors::INVALID_DATA:
+            Log("Invalid data\n");
+            break;
+        case ListErrors::INVALID_NULLPTR:
+            Log("Null adress in list is invalid\n");
+            break;
+        case ListErrors::MEMORY_ERR:
+            Log("Memory error\n");
+            break;
+        case ListErrors::OUT_OF_RANGE:
+            Log("List element is out of range\n");
+            break;
+        
+        case ListErrors::NO_ERR:
+        default:
+            break;
+    }
 }                                          
 
 static inline void MoveFreeBlockHeadForward(ListType* list)
