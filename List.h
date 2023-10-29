@@ -8,8 +8,8 @@ struct ListElemType
 {
     int value;
 
-    int prevPos;
-    int nextPos;
+    size_t prevPos;
+    size_t nextPos;
 };
 
 struct ListType
@@ -40,14 +40,14 @@ enum class ListErrors
 
 //for listInsert push back
 #define LIST_END SIZE_MAX
-void ListElemInit(ListElemType* elem, const size_t value, 
+void ListElemInit(ListElemType* elem, const int value, 
                                       const size_t prevPos, 
                                       const size_t nextPos);
 
 ListErrors ListCtor  (ListType* list, const size_t capacity = 0);
 ListErrors ListDtor  (ListType* list);
 ListErrors ListVerify(ListType* list);
-ListErrors ListInsert(ListType* list, const size_t anchorPos, const size_t value, 
+ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value, 
                       size_t* insertedValPos);
 ListErrors ListErase (ListType* list, const size_t anchorPos);
 #define LIST_DUMP(list) ListDump((list), __FILE__, __func__, __LINE__)

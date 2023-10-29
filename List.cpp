@@ -139,7 +139,7 @@ void ListDump  (ListType* list, const char* fileName,
     //TODO: 
 }
 
-ListErrors ListInsert(ListType* list, const size_t anchorPos, const size_t value, 
+ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value, 
                       size_t* insertedValPos)
 {
     assert(list);
@@ -242,7 +242,7 @@ static inline void ListDataCtor(ListType* list)
     ListElemInit(&list->data[list->capacity - 1], POISON, list->capacity - 2, 0);
 }
 
-void ListElemInit(ListElemType* elem, const size_t value, 
+void ListElemInit(ListElemType* elem, const int value, 
                                       const size_t prevPos, 
                                       const size_t nextPos)
 {
