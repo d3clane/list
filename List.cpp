@@ -2,6 +2,7 @@
 
 #include "Log.h"
 #include "List.h"
+#include "string.h"
 
 static const size_t MinCapacity    = 16;
 static const int POISON            = 0xDEAD;
@@ -14,7 +15,6 @@ static inline void ListDataInit   (ListElemType* list,
 static inline void DeleteFreeBlock(ListType* list);
 static inline void AddFreeBlock   (ListType* list, const size_t newPos);
 
-static inline ListErrors ListRealloc         (ListType* list);
 static inline ListErrors ListCapacityDecrease(ListType* list);
 static inline ListErrors ListCapacityIncrease(ListType* list);
 
@@ -108,11 +108,7 @@ ListErrors ListVerify(ListType* list)
         LOG_ERR(ListErrors::OUT_OF_RANGE);
 
     if (list->data[0].value != POISON)
-    {
-        //printf("val, prev, next: %d, %d, %d\n", list->data->value, list->data->prevPos, list->data->nextPos);
-
         LOG_ERR(ListErrors::INVALID_NULLPTR);
-    }
 
     size_t freeBlockIndex = list->freeBlockHead;
     if (list->data[list->freeBlockHead].prevPos != 0)
@@ -152,8 +148,6 @@ void ListDump(const ListType* list, const char* fileName,
     ListTextDump(list, fileName, funcName, line);
 
     ListGraphicDump(list);
-
-    Log("<img src = \"out.png\">");
 }
 
 void ListTextDump(const ListType* list, const char* fileName,
@@ -213,16 +207,14 @@ void ListGraphicDump(const ListType* list)
     for (size_t i = 0; i < list->capacity; ++i)
     {
         fprintf(outDotFile, "node%zu"
-                            "[shape=record, label  =\"id: %zu |"
-                                                   "value: %d |" 
-                                              "<f0> next: %zu |"
+                            "[shape=Mrecord, label  =\"id: %zu |"
+                                                    "value: %d |" 
+                                               "<f0> next: %zu |"
                                               "<f1> prev: %zu\"];\n",
                             i, i, 
                             list->data[i].value, 
                             list->data[i].nextPos,
                             list->data[i].prevPos);
-        
-        //fprintf(outDotFile, "{ rank = same; %zu; node%zu; }\n", i, i);    
     }
 
     fprintf(outDotFile, "edge[color=\"white\", weight = 1, fontcolor=\"blue\",fontsize=78];\n");
@@ -256,7 +248,22 @@ void ListGraphicDump(const ListType* list)
 
     fclose(outDotFile);
 
-    system("dot list.dot -T png -o out.png");
+    static size_t imgIndex = 0;
+
+    static const size_t maxImgNameLength  = 64;
+    static char imgName[maxImgNameLength] = "";
+    snprintf(imgName, maxImgNameLength, "imgs/img_%zu_time_%s.png", imgIndex, __TIME__);
+
+    static const size_t     maxCommandLength  = 128;
+    static char commandName[maxCommandLength] = "";
+    snprintf(commandName, maxCommandLength, "dot list.dot -T png -o %s", imgName);
+
+    system(commandName);
+
+    snprintf(commandName, maxCommandLength, "<img src = \"%s\">", imgName);    
+    Log(commandName);
+
+    imgIndex++;
 }
 
 ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value, 
@@ -268,10 +275,7 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     assert(anchorPos != 0);
     assert(anchorPos == LIST_END || list->data[anchorPos].value   != POISON);
 
-    //printf("next free block: %d\n", list->data[list->freeBlockHead].nextPos);
     LIST_CHECK(list);
-    //printf("next free block: %d\n", list->data[list->freeBlockHead].nextPos);
-    //printf("anchor pos: %lu\n", anchorPos);
     
     ListErrors error = ListErrors::NO_ERR;
     if (list->freeBlockHead == 0)
@@ -280,36 +284,26 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     if (error != ListErrors::NO_ERR)
         return error;
     
-    //printf("next free block: %d\n", list->data[list->freeBlockHead].nextPos);
     const size_t newValPos = list->freeBlockHead;
     DeleteFreeBlock(list);
     *insertedValPos        = newValPos;
 
-    //printf("new pos: %d\n", newValPos);
-    //printf("newvalPos: %d\n", newValPos);
-    //printf("zero next pos: %d\n", list->data->nextPos);
-
     if (anchorPos == LIST_END)
     {
-        //printf("zero next pos: %d\n", list->data->nextPos);
         ListElemInit(&list->data[newValPos], value, list->tail, 0);
 
         list->data[list->tail].nextPos = newValPos;
 
         if (list->tail == 0)
-            list->data[0].prevPos = newValPos;
-        
-        list->tail = newValPos;
+            list->data[0].prevPos = newValPos;        
     }
     else
     {
         ListElemInit(&list->data[newValPos], 
                      value, list->data[anchorPos].prevPos, anchorPos);
-        //printf("zero next pos: %d\n", list->data->nextPos);
 
         const size_t prevAnchor = list->data[anchorPos].prevPos;
 
-        //if (prevAnchor != 0)
         list->data[prevAnchor].nextPos = newValPos;
 
         list->data[anchorPos].prevPos = newValPos;
@@ -414,13 +408,10 @@ static inline void DeleteFreeBlock(ListType* list)
 {
     assert(list);
 
-    //TODO: realloc
-    assert(list->freeBlockHead != 0);
-
     if (list->freeBlockHead == 0)
-    {
-        
-    }
+        ListCapacityIncrease(list);
+
+    assert(list->freeBlockHead != 0);
 
     list->data[list->freeBlockHead].value = POISON;
     list->freeBlockHead = list->data[list->freeBlockHead].nextPos;
@@ -513,11 +504,6 @@ static inline ListErrors ListCapacityDecrease(ListType* list)
     
     list->data = (ListElemType*)tmpPtr;
 
-    return ListErrors::NO_ERR;
-}
-
-static inline ListErrors ListRealloc(ListType* list)
-{
     return ListErrors::NO_ERR;
 }
 

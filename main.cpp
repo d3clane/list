@@ -25,9 +25,12 @@ int main(const int argc, const char* argv[])
     
     //printf("lastPos: %d\n", lastPos);
 
+    LIST_DUMP(&list);
+    
     ListInsert(&list, lastPos, 1488, &newLastPos);
 
     //printf("lastPos: %d\n", lastPos);
+    LIST_DUMP(&list);
 
     ListErase(&list, newLastPos);
     ListInsert(&list, lastPos, 1111, &lastPos);
@@ -37,6 +40,8 @@ int main(const int argc, const char* argv[])
     ListInsert(&list, LIST_END, 9999, &newLastPos);
 
     //printf("lastPos: %d\n", lastPos);
+
+    LIST_DUMP(&list);
 
     ListInsert(&list, lastPos, 123, &lastPos);
 
