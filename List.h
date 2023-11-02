@@ -45,15 +45,25 @@ void ListElemInit(ListElemType* elem, const int value,
                                       const size_t nextPos);
 
 ListErrors ListCtor  (ListType* list, const size_t capacity = 0);
+ListErrors ListCopy  (const ListType* source, ListType* target);
 ListErrors ListDtor  (ListType* list);
 ListErrors ListVerify(ListType* list);
 ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value, 
                       size_t* insertedValPos);
 ListErrors ListErase (ListType* list, const size_t anchorPos);
+ListErrors ListRebuild(ListType* list);
+
+#define LIST_TEXT_DUMP(list) ListTextDump((list), __FILE__, __func__, __LINE__)
+void ListTextDump(const ListType* list, const char* fileName,
+                                        const char* funcName,
+                                        const int   line);
+                                        
+void ListGraphicDump(const ListType* list);
+
 #define LIST_DUMP(list) ListDump((list), __FILE__, __func__, __LINE__)
 void ListDump(const ListType* list, const char* fileName,
                                     const char* funcName,
-                                    const int   line);
+                                    const int line);
 
 #define LIST_ERRORS_LOG_ERROR(error) ListErrorsLogError((error), __FILE__, __func__, __LINE__)
 void ListErrorsLogError(ListErrors error, const char* fileName,

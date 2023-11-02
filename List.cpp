@@ -3,13 +3,22 @@
 #include "Log.h"
 #include "List.h"
 
-static const size_t MinCapacity    = 64;
+static const size_t MinCapacity    = 16;
 static const int POISON            = 0xDEAD;
 static const size_t ExtraInfoShift = 1;
 
-static inline void ListDataCtor            (ListType* list);
-static inline void MoveFreeBlockHeadForward(ListType* list);
-static inline void MoveFreeBlockHeadBack   (ListType* list, const size_t newPos);
+static inline void ListDataCtor   (ListType* list);
+static inline void ListDataInit   (ListElemType* list, 
+                                   const size_t leftBorder, const size_t rightBorder,
+                                   const size_t listCapacity);
+static inline void DeleteFreeBlock(ListType* list);
+static inline void AddFreeBlock   (ListType* list, const size_t newPos);
+
+static inline ListErrors ListRealloc         (ListType* list);
+static inline ListErrors ListCapacityDecrease(ListType* list);
+static inline ListErrors ListCapacityIncrease(ListType* list);
+
+static inline void ListHeadTailInit(ListType* list);
 
 #define LIST_CHECK(list)                    \
 do                                          \
@@ -18,7 +27,7 @@ do                                          \
                                             \
     if (listErr != ListErrors::NO_ERR)      \
     {                                       \
-        LIST_DUMP(list);                    \
+        LIST_TEXT_DUMP(list);                    \
         LIST_ERRORS_LOG_ERROR(listErr);     \
         return listErr;                     \
     }                                       \
@@ -66,11 +75,25 @@ ListErrors ListDtor(ListType* list)
     return ListErrors::NO_ERR;
 }
 
+ListErrors ListCopy(const ListType* source, ListType* target)
+{
+    assert(source);
+    assert(target);
+
+    target->capacity      = source->capacity;
+    target->head          = source->head;
+    target->tail          = source->tail;
+    target->freeBlockHead = source->freeBlockHead;
+    target->data          = source->data;
+
+    return ListErrors::NO_ERR;
+}
+
 #define LOG_ERR(error)            \
 do                                \
 {                                 \
     LIST_ERRORS_LOG_ERROR(error); \
-    LIST_DUMP(list);              \
+    LIST_TEXT_DUMP(list);         \
     return error;                 \
 } while (0)
 
@@ -84,8 +107,7 @@ ListErrors ListVerify(ListType* list)
     if (list->capacity < list->size)
         LOG_ERR(ListErrors::OUT_OF_RANGE);
 
-    if (list->data[0].value   != POISON || 
-        list->data[0].prevPos != 0      || list->data[0].nextPos != 0)
+    if (list->data[0].value != POISON)
     {
         //printf("val, prev, next: %d, %d, %d\n", list->data->value, list->data->prevPos, list->data->nextPos);
 
@@ -121,7 +143,22 @@ ListErrors ListVerify(ListType* list)
 
 void ListDump(const ListType* list, const char* fileName,
                                     const char* funcName,
-                                    const int   line)
+                                    const int line)
+{
+    assert(list);
+    assert(fileName);
+    assert(funcName);
+    
+    ListTextDump(list, fileName, funcName, line);
+
+    ListGraphicDump(list);
+
+    Log("<img src = \"out.png\">");
+}
+
+void ListTextDump(const ListType* list, const char* fileName,
+                                        const char* funcName,
+                                        const int   line)
 {
     assert(list);
     assert(fileName);
@@ -135,11 +172,10 @@ void ListDump(const ListType* list, const char* fileName,
     Log("Free blocks head: %zu\n", list->freeBlockHead);
 
     Log("List capacity: %zu\n", list->capacity);
-
     //-----Print all data----
 
     Log("Data[%p]:\n", list->data);
-    
+
     for (size_t i = 0; i < numberOfElementsToPrint && i < list->capacity; ++i)
     {
         Log("\tElement id: %zu, value: %d, previous position: %zu, next position: %zu\n",
@@ -161,6 +197,66 @@ void ListDump(const ListType* list, const char* fileName,
     Log("\tLast element: %zu, value: %d, previous position: %zu, next position: %zu\n",
          list->tail, list->data[list->tail].value, 
          list->data[list->tail].prevPos, list->data[list->tail].nextPos);
+    
+    LOG_END();
+}
+
+void ListGraphicDump(const ListType* list)
+{
+    assert(list);
+
+    static const char* tmpDotFileName = "list.dot";
+    FILE* outDotFile = fopen(tmpDotFileName, "w");
+
+    fprintf(outDotFile, "digraph G{\nrankdir=LR;\nnode[shape=rectangle, color=\"red\",fontsize=14];\n");
+
+    for (size_t i = 0; i < list->capacity; ++i)
+    {
+        fprintf(outDotFile, "node%zu"
+                            "[shape=record, label  =\"id: %zu |"
+                                                   "value: %d |" 
+                                              "<f0> next: %zu |"
+                                              "<f1> prev: %zu\"];\n",
+                            i, i, 
+                            list->data[i].value, 
+                            list->data[i].nextPos,
+                            list->data[i].prevPos);
+        
+        //fprintf(outDotFile, "{ rank = same; %zu; node%zu; }\n", i, i);    
+    }
+
+    fprintf(outDotFile, "edge[color=\"white\", weight = 1, fontcolor=\"blue\",fontsize=78];\n");
+
+    static const size_t numberOfWhiteArrows = 10;
+    for (size_t whiteArrowId = 0; whiteArrowId < numberOfWhiteArrows; ++whiteArrowId)
+    {
+        fprintf(outDotFile, "node0");
+        for (size_t i = 1; i < list->capacity; ++i)
+        {
+            fprintf(outDotFile, "->node%zu", i);
+        }
+
+        fprintf(outDotFile, ";\n");
+    }
+
+    fprintf(outDotFile, "edge[color=\"darkred\", fontsize=12];\n");
+
+    for (size_t i = 0; i < list->capacity; ++i)
+    {
+        fprintf(outDotFile, "node%zu->node%zu;\n", i, list->data[i].nextPos);
+    }
+
+    fprintf(outDotFile, "node[shape = rectangle, style = \"filled\", fillcolor = \"lightgray\"];\n");
+    fprintf(outDotFile, "edge[color = \"darkgreen\"];\n");
+    fprintf(outDotFile, "head->node%zu;\n", list->head);
+    fprintf(outDotFile, "tail->node%zu;\n", list->tail);
+    fprintf(outDotFile, "\"free block\"->node%zu;\n", list->freeBlockHead);
+    
+    fprintf(outDotFile, "}\n");
+
+    fclose(outDotFile);
+
+    system("dot list.dot -T png -o out.png");
 }
 
 ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value, 
@@ -177,13 +273,16 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     //printf("next free block: %d\n", list->data[list->freeBlockHead].nextPos);
     //printf("anchor pos: %lu\n", anchorPos);
     
-    //TODO: realloc
+    ListErrors error = ListErrors::NO_ERR;
     if (list->freeBlockHead == 0)
-        return ListErrors::MEMORY_ERR;
+        error = ListCapacityIncrease(list);
+
+    if (error != ListErrors::NO_ERR)
+        return error;
     
     //printf("next free block: %d\n", list->data[list->freeBlockHead].nextPos);
     const size_t newValPos = list->freeBlockHead;
-    MoveFreeBlockHeadForward(list);
+    DeleteFreeBlock(list);
     *insertedValPos        = newValPos;
 
     //printf("new pos: %d\n", newValPos);
@@ -195,9 +294,11 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
         //printf("zero next pos: %d\n", list->data->nextPos);
         ListElemInit(&list->data[newValPos], value, list->tail, 0);
 
-        if (list->tail != 0)
-            list->data[list->tail].nextPos = newValPos;
+        list->data[list->tail].nextPos = newValPos;
 
+        if (list->tail == 0)
+            list->data[0].prevPos = newValPos;
+        
         list->tail = newValPos;
     }
     else
@@ -207,19 +308,14 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
         //printf("zero next pos: %d\n", list->data->nextPos);
 
         const size_t prevAnchor = list->data[anchorPos].prevPos;
-        if (prevAnchor != 0)
-            list->data[prevAnchor].nextPos = newValPos;
+
+        //if (prevAnchor != 0)
+        list->data[prevAnchor].nextPos = newValPos;
 
         list->data[anchorPos].prevPos = newValPos;
     }
 
-    if (list->data[newValPos].prevPos == 0)
-    {
-        //printf("zero next pos: %d\n", list->data->nextPos);
-        //printf("HEREEE\n");
-
-        list->head = newValPos;
-    }
+    ListHeadTailInit(list);
 
     LIST_CHECK(list);
     return ListErrors::NO_ERR;
@@ -232,26 +328,31 @@ ListErrors ListErase (ListType* list, const size_t anchorPos)
 
     LIST_CHECK(list);
 
-    if (anchorPos == list->tail)
-    {
-        list->tail = list->data[anchorPos].prevPos;
-        list->data[list->tail].nextPos = 0;
-    }
-    else if (anchorPos == list->head)
-    {
-        list->head = list->data[anchorPos].nextPos;
-        list->data[list->head].prevPos = 0;
-    }
-    else
-    {
-        list->data[list->data[anchorPos].prevPos].nextPos = list->data[anchorPos].nextPos;
-        list->data[list->data[anchorPos].nextPos].prevPos = list->data[anchorPos].prevPos;
-    }
+    list->data[list->data[anchorPos].prevPos].nextPos = list->data[anchorPos].nextPos;
+    list->data[list->data[anchorPos].nextPos].prevPos = list->data[anchorPos].prevPos;
 
-    MoveFreeBlockHeadBack(list, anchorPos);
+    ListHeadTailInit(list);
+    AddFreeBlock(list, anchorPos);
+
     LIST_CHECK(list);
 
     return ListErrors::NO_ERR;
+}
+
+static inline void ListDataInit(ListElemType* list, 
+                                const size_t leftBorder, const size_t rightBorder,
+                                const size_t listCapacity)
+{
+    assert(list);
+    assert(leftBorder  <= rightBorder);
+    assert(rightBorder <= listCapacity);
+    assert(leftBorder != 0);
+
+    for (size_t i = leftBorder; i < rightBorder; ++i)
+        ListElemInit(&list[i], POISON, i - 1, i + 1);
+
+    if (rightBorder == listCapacity)
+        ListElemInit(&list[listCapacity - 1], POISON, listCapacity - 2, 0);  
 }
 
 static inline void ListDataCtor(ListType* list)
@@ -260,10 +361,7 @@ static inline void ListDataCtor(ListType* list)
 
     ListElemInit(&list->data[0], POISON, 0, 0);
 
-    for (size_t i = 1; i < list->capacity - 1; ++i)
-        ListElemInit(&list->data[i], POISON, i - 1, i + 1);
-
-    ListElemInit(&list->data[list->capacity - 1], POISON, list->capacity - 2, 0);
+    ListDataInit(list->data, 1, list->capacity, list->capacity);
 }
 
 void ListElemInit(ListElemType* elem, const int value, 
@@ -312,25 +410,27 @@ void ListErrorsLogError(ListErrors error, const char* fileName,
     }
 }                                          
 
-static inline void MoveFreeBlockHeadForward(ListType* list)
+static inline void DeleteFreeBlock(ListType* list)
 {
     assert(list);
 
     //TODO: realloc
     assert(list->freeBlockHead != 0);
+
+    if (list->freeBlockHead == 0)
+    {
+        
+    }
 
     list->data[list->freeBlockHead].value = POISON;
     list->freeBlockHead = list->data[list->freeBlockHead].nextPos;
     list->data[list->freeBlockHead].prevPos = 0;
 }
 
-static inline void MoveFreeBlockHeadBack(ListType* list, const size_t newPos)
+static inline void AddFreeBlock(ListType* list, const size_t newPos)
 {
     assert(list);
     assert(newPos < list->capacity);
-
-    //TODO: realloc
-    assert(list->freeBlockHead != 0);
 
     if (list->freeBlockHead == 0)
     {
@@ -344,4 +444,87 @@ static inline void MoveFreeBlockHeadBack(ListType* list, const size_t newPos)
     list->data[list->freeBlockHead].prevPos = newPos;
     ListElemInit(&list->data[newPos], POISON, 0, list->freeBlockHead);
     list->freeBlockHead = newPos;
+}
+
+static inline ListErrors ListCapacityIncrease(ListType* list)
+{
+    assert(list);
+    
+    if (list->freeBlockHead == 0)
+        list->freeBlockHead = list->capacity;
+
+    list->capacity *= 2;
+
+    void* tmpPtr = realloc(list->data, list->capacity * sizeof(*list->data));
+
+    if (tmpPtr == nullptr)
+        return ListErrors::MEMORY_ERR;
+    
+    list->data = (ListElemType*)tmpPtr;
+    
+    ListDataInit(list->data, list->capacity / 2, list->capacity, list->capacity);
+
+    return ListErrors::NO_ERR;
+}
+
+ListErrors ListRebuild(ListType* list)
+{
+    assert(list);
+
+    ListType newList = {};
+    ListCtor(&newList, list->capacity); 
+
+    //-----rebuild used values-------
+    size_t posInNewList = 1;
+    for (size_t i = list->head; i != list->tail; i = list->data[i].nextPos)
+    {
+        ListElemInit(&newList.data[posInNewList], list->data[i].value, 
+                                                  posInNewList - 1, posInNewList + 1);
+        ++posInNewList;
+    }
+    ListElemInit(newList.data + posInNewList, list->data[list->tail].value,
+                                              posInNewList - 1, 0);
+    
+    newList.head = 1;
+    newList.tail = posInNewList;
+    newList.freeBlockHead = newList.tail + 1;
+    //ListElemInit(newList.data, list->data->value, newList.tail, newList.head);
+
+    ListDtor(list);
+    ListCopy(&newList, list);
+
+    //NO newList Dtor because there is calloced memory used for list and nothing more dynamic
+    return ListErrors::NO_ERR;
+}
+
+static inline ListErrors ListCapacityDecrease(ListType* list)
+{
+    assert(list);
+
+    ListRebuild(list);
+    assert(list->tail * 4 < list->capacity);
+
+    list->capacity /= 2;
+
+    void* tmpPtr = realloc(list->data, list->capacity * sizeof(*list->data));
+
+    if (tmpPtr == nullptr)
+        return ListErrors::MEMORY_ERR;
+    
+    list->data = (ListElemType*)tmpPtr;
+
+    return ListErrors::NO_ERR;
+}
+
+static inline ListErrors ListRealloc(ListType* list)
+{
+    return ListErrors::NO_ERR;
+}
+
+static inline void ListHeadTailInit(ListType* list)
+{
+    assert(list);
+
+    list->head = list->data[0].nextPos;
+    list->tail = list->data[0].prevPos;
 }

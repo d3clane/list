@@ -1,6 +1,8 @@
 #include "List.h"
 #include "Log.h"
 
+#include <stdlib.h>
+
 int main(const int argc, const char* argv[])
 {
     LogOpen(argv[0]);
@@ -10,7 +12,7 @@ int main(const int argc, const char* argv[])
 
     size_t lastPos = 0;
 
-    //LIST_DUMP(&list);
+    //LIST_TEXT_DUMP(&list);
     //printf("HERE1\n");
     //printf("next free blockAA: %d\n", list.data[list.freeBlockHead].nextPos);
 
@@ -42,6 +44,7 @@ int main(const int argc, const char* argv[])
 
     ListErase(&list, newLastPos);
 
+    ListRebuild(&list);
     LIST_DUMP(&list);
 
     ListDtor(&list);
