@@ -202,41 +202,42 @@ void ListGraphicDump(const ListType* list)
     static const char* tmpDotFileName = "list.dot";
     FILE* outDotFile = fopen(tmpDotFileName, "w");
 
-    fprintf(outDotFile, "digraph G{\nrankdir=LR;\nnode[shape=rectangle, color=\"red\",fontsize=14];\n");
+    //TODO: constraint
+    fprintf(outDotFile, "digraph G{\nrankdir=LR;\n"
+                    "node[shape=rectangle, color=\"red\",fontsize=14];"
+                    "\ngraph [bgcolor=\"#31353b\"];\n");
 
     for (size_t i = 0; i < list->capacity; ++i)
     {
         fprintf(outDotFile, "node%zu"
-                            "[shape=Mrecord, label  =\"id: %zu |"
-                                                    "value: %d |" 
-                                               "<f0> next: %zu |"
-                                              "<f1> prev: %zu\"];\n",
+                            "[shape=Mrecord, style=filled, fillcolor=\"#7293ba\","
+                            "label  =\"id: %zu |"
+                                    "value: %d |" 
+                               "<f0> next: %zu |"
+                              "<f1> prev: %zu\","
+                              "color = \"#008080\"];\n",
                             i, i, 
                             list->data[i].value, 
                             list->data[i].nextPos,
                             list->data[i].prevPos);
     }
 
-    fprintf(outDotFile, "edge[color=\"white\", weight = 1, fontcolor=\"blue\",fontsize=78];\n");
+    fprintf(outDotFile, "edge[color=\"#31353b\", weight = 1, fontcolor=\"blue\",fontsize=78];\n");
 
     static const size_t numberOfWhiteArrows = 10;
     for (size_t whiteArrowId = 0; whiteArrowId < numberOfWhiteArrows; ++whiteArrowId)
     {
         fprintf(outDotFile, "node0");
         for (size_t i = 1; i < list->capacity; ++i)
-        {
             fprintf(outDotFile, "->node%zu", i);
-        }
 
         fprintf(outDotFile, ";\n");
     }
 
-    fprintf(outDotFile, "edge[color=\"darkred\", fontsize=12];\n");
+    fprintf(outDotFile, "edge[color=\"red\", fontsize=12, constraint=false];\n");
 
     for (size_t i = 0; i < list->capacity; ++i)
-    {
         fprintf(outDotFile, "node%zu->node%zu;\n", i, list->data[i].nextPos);
-    }
 
     fprintf(outDotFile, "node[shape = rectangle, style = \"filled\", fillcolor = \"lightgray\"];\n");
     fprintf(outDotFile, "edge[color = \"darkgreen\"];\n");
@@ -288,6 +289,7 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     DeleteFreeBlock(list);
     *insertedValPos        = newValPos;
 
+    //TODO: LIST_END = 0 -> ифы некоторые уберутся в силу цикличности
     if (anchorPos == LIST_END)
     {
         ListElemInit(&list->data[newValPos], value, list->tail, 0);
