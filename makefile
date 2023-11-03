@@ -18,9 +18,9 @@ TARGET = list
 OBJECTDIR = build
 DOXYFILE = Others/Doxyfile
 
-HEADERS  = Colors.h Errors.h List.h Log.h
+HEADERS  = Colors.h Errors.h Log.h List.h
 
-FILESCPP = main.cpp Errors.cpp List.cpp Log.cpp
+FILESCPP = main.cpp Errors.cpp Log.cpp List.cpp
 
 objects = $(FILESCPP:%.cpp=$(OBJECTDIR)/%.o)
 
