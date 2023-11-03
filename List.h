@@ -16,8 +16,7 @@ struct ListType
 {
     ListElemType* data;
 
-    size_t head;
-    size_t tail;
+    size_t end;
     size_t freeBlockHead;
 
     size_t size;
@@ -35,11 +34,8 @@ enum class ListErrors
 
     INVALID_NULLPTR,
     INVALID_DATA,
-
 };
 
-//for listInsert push back
-#define LIST_END SIZE_MAX
 void ListElemInit(ListElemType* elem, const int value, 
                                       const size_t prevPos, 
                                       const size_t nextPos);
@@ -52,6 +48,11 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
                       size_t* insertedValPos);
 ListErrors ListErase (ListType* list, const size_t anchorPos);
 ListErrors ListRebuild(ListType* list);
+
+ListErrors ListCapacityDecrease(ListType* list);
+
+size_t ListGetHead(const ListType* list);
+size_t ListGetTail(const ListType* list);
 
 #define LIST_TEXT_DUMP(list) ListTextDump((list), __FILE__, __func__, __LINE__)
 void ListTextDump(const ListType* list, const char* fileName,
