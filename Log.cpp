@@ -65,6 +65,7 @@ void LogBegin(const char* fileName, const char* funcName, const int line)
 
     if (LOG_FILE == -1)
         return;
+
     time_t timeInSeconds = time(nullptr);     
 
     Log("\n-----------------------\n\n"                            
@@ -74,7 +75,6 @@ void LogBegin(const char* fileName, const char* funcName, const int line)
         HTML_HEAD_END "\n\n\n",                                    
         ctime(&timeInSeconds), fileName, funcName, line);                                 
 
-    // backtrace печатет в начало файла
     static const size_t buffSize = 128;
     static void* buffer[buffSize];
     int numb = backtrace(buffer, buffSize);
@@ -132,6 +132,7 @@ static inline size_t Min(size_t a, size_t b)
 
 static int TryOpenFile(const char* name)
 {
+    //TODO: поменять на статический массив, а то calloc в логах странно
     char* newString = strdup(name);
     char* fileName  = strcat(newString, ".log.html");
 
