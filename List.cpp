@@ -16,7 +16,13 @@ static inline void AddFreeBlock   (ListType* list, const size_t newPos);
 
 static inline ListErrors ListCapacityIncrease(ListType* list);
 
-static void inline CreateImgInLogFile(const size_t imgIndex);
+static inline void CreateImgInLogFile(const size_t imgIndex);
+static inline void BeginDotFile(FILE* outDotFile);
+static inline void EndDotFile  (FILE* outDotFile);
+static inline void CreateMainNodeDotFile(FILE* outDotFile, const ListType* list, const size_t nodeId);
+static inline void CreateAuxiliaryNodesDotFile(FILE* outDotFile, const ListType* list);
+
+static ListErrors inline GetPosForNewVal(ListType* list, size_t* pos);
 
 #define LIST_CHECK(list)                    \
 do                                          \
@@ -25,7 +31,7 @@ do                                          \
                                             \
     if (listErr != ListErrors::NO_ERR)      \
     {                                       \
-        LIST_TEXT_DUMP(list);                    \
+        LIST_TEXT_DUMP(list);               \
         LIST_ERRORS_LOG_ERROR(listErr);     \
         return listErr;                     \
     }                                       \
@@ -39,19 +45,18 @@ ListErrors ListCtor(ListType* list, const size_t listStandardCapacity)
     if (capacity < MinCapacity)
         capacity = MinCapacity;
     
-    list->capacity = capacity;
-    list->size     = 0;
+    list->size = 0;
 
     list->data = (ListElemType*) calloc(capacity, sizeof(*list->data));
 
     if (list->data == nullptr)
-    {
         return ListErrors::MEMORY_ERR;
-    }
+
+    list->capacity = capacity;
 
     ListDataCtor(list);
 
-    list->end = 0;
+    list->end            = 0;
     list->freeBlockHead  = 1;
 
     LIST_CHECK(list);
@@ -63,7 +68,9 @@ ListErrors ListDtor(ListType* list)
 {
     assert(list);
 
-    free(list->data);
+    if (list->data != nullptr)
+        free(list->data);
+
     list->data = nullptr;
     list->end = list->freeBlockHead = 0;
 
@@ -107,7 +114,6 @@ ListErrors ListVerify(ListType* list)
         LOG_ERR(ListErrors::INVALID_NULLPTR);
 
     size_t freeBlockIndex = list->freeBlockHead;
-
     if (freeBlockIndex == 0)
         return ListErrors::NO_ERR;
 
@@ -118,12 +124,6 @@ ListErrors ListVerify(ListType* list)
     {
         if (list->data[freeBlockIndex].value != POISON)
             LOG_ERR(ListErrors::INVALID_DATA);
-        
-        /*if (list->data[freeBlockIndex].nextPos == freeBlockIndex)
-            LOG_ERR(ListErrors::INVALID_DATA);
-        
-        if (list->data[freeBlockIndex].prevPos == freeBlockIndex)
-            LOG_ERR(ListErrors::INVALID_DATA);*/
 
         if (list->data[freeBlockIndex].nextPos > list->capacity)
             LOG_ERR(ListErrors::OUT_OF_RANGE);
@@ -198,7 +198,7 @@ void ListTextDump(const ListType* list, const char* fileName,
     LOG_END();
 }
 
-static void inline CreateImgInLogFile(const size_t imgIndex)
+static inline void CreateImgInLogFile(const size_t imgIndex)
 {
     static const size_t maxImgNameLength  = 64;
     static char imgName[maxImgNameLength] = "";
@@ -214,62 +214,76 @@ static void inline CreateImgInLogFile(const size_t imgIndex)
     Log(commandName);
 }
 
+static inline void BeginDotFile(FILE* outDotFile)
+{
+    fprintf(outDotFile, "digraph G{\nrankdir=LR;\ngraph [bgcolor=\"#31353b\"];\n");
+}
+
+static inline void EndDotFile(FILE* outDotFile)
+{
+    fprintf(outDotFile, "\n}\n");
+}
+
+static inline void CreateMainNodeDotFile(FILE* outDotFile, const ListType* list, const size_t nodeId)
+{
+    fprintf(outDotFile, "node%zu"
+                        "[shape=Mrecord, style=filled, fillcolor=\"#7293ba\","
+                        "label  =\"id: %zu   |"
+                                "value: %d   |" 
+                            "<f0> next: %zu  |"
+                            "<f1> prev: %zu\","
+                            "color = \"#008080\"];\n",
+                        nodeId, nodeId, 
+                        list->data[nodeId].value, 
+                        list->data[nodeId].nextPos,
+                        list->data[nodeId].prevPos);    
+}
+
+static inline void CreateAuxiliaryNodesDotFile(FILE* outDotFile, const ListType* list)
+{
+    fprintf(outDotFile, "node[shape = octagon, style = \"filled\", fillcolor = \"lightgray\"];\n");
+    fprintf(outDotFile, "edge[color = \"darkgreen\"];\n");
+
+    fprintf(outDotFile, "head->node%zu;\n", ListGetHead(list));
+    fprintf(outDotFile, "tail->node%zu;\n", ListGetTail(list));
+    fprintf(outDotFile, "end->node%zu;\n", 0lu);
+    fprintf(outDotFile, "\"free block\"->node%zu;\n", list->freeBlockHead);
+    fprintf(outDotFile, "nodeInfo[shape = Mrecord, style = filled, fillcolor=\"#19b2e6\","
+                        "label=\"capacity: %zu | size : %zu\"];\n",
+                        list->capacity, list->size);   
+}
+
 void ListGraphicDump(const ListType* list)
 {
     assert(list);
 
-    static const char* tmpDotFileName = "list.dot";
-    FILE* outDotFile = fopen(tmpDotFileName, "w");
+    static const char* dotFileName = "list.dot";
+    FILE* outDotFile = fopen(dotFileName, "w");
 
-    fprintf(outDotFile, "digraph G{\nrankdir=LR;\n"
-                        "node[shape=rectangle, color=\"red\",fontsize=14];"
-                        "\ngraph [bgcolor=\"#31353b\"];\n");
+    BeginDotFile(outDotFile);
 
     for (size_t i = 0; i < list->capacity; ++i)
-    {
-        fprintf(outDotFile, "node%zu"
-                            "[shape=Mrecord, style=filled, fillcolor=\"#7293ba\","
-                            "label  =\"id: %zu |"
-                                    "value: %d |" 
-                               "<f0> next: %zu |"
-                              "<f1> prev: %zu\","
-                              "color = \"#008080\"];\n",
-                            i, i, 
-                            list->data[i].value, 
-                            list->data[i].nextPos,
-                            list->data[i].prevPos);
-    }
+        CreateMainNodeDotFile(outDotFile, list, i);
 
     fprintf(outDotFile, "edge[color=\"#31353b\", weight = 1, fontcolor=\"blue\",fontsize=78];\n");
 
-    static const size_t numberOfWhiteArrows = 10;
-    for (size_t whiteArrowId = 0; whiteArrowId < numberOfWhiteArrows; ++whiteArrowId)
-    {
-        fprintf(outDotFile, "node0");
-        for (size_t i = 1; i < list->capacity; ++i)
-            fprintf(outDotFile, "->node%zu", i);
+    //--------White arrows----------
 
-        fprintf(outDotFile, ";\n");
-    }
+    fprintf(outDotFile, "node0");
+    for (size_t i = 1; i < list->capacity; ++i)
+        fprintf(outDotFile, "->node%zu", i);
+    fprintf(outDotFile, ";\n");
+
+    //-------List printing---------
 
     fprintf(outDotFile, "edge[color=\"red\", fontsize=12, constraint=false];\n");
 
     for (size_t i = 0; i < list->capacity; ++i)
         fprintf(outDotFile, "node%zu->node%zu;\n", i, list->data[i].nextPos);
 
-    fprintf(outDotFile, "node[shape = octagon, style = \"filled\", fillcolor = \"lightgray\"];\n");
-    fprintf(outDotFile, "edge[color = \"darkgreen\"];\n");
-    fprintf(outDotFile, "head->node%zu;\n", ListGetHead(list));
-    fprintf(outDotFile, "tail->node%zu;\n", ListGetTail(list));
-    fprintf(outDotFile, "end->node%zu;\n", 0lu);
-    fprintf(outDotFile, "\"free block\"->node%zu;\n", list->freeBlockHead);
+    CreateAuxiliaryNodesDotFile(outDotFile, list);
 
-    fprintf(outDotFile, "nodeInfo[shape = Mrecord, style = filled, fillcolor=\"#19b2e6\","
-                        "label=\"capacity: %zu |"
-                            "size    : %zu\"];\n",
-                        list->capacity, list->size);
-
-    fprintf(outDotFile, "}\n");
+    EndDotFile(outDotFile);
 
     fclose(outDotFile);
 
@@ -289,16 +303,15 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
 
     LIST_CHECK(list);
     
+    size_t newValPos = 0;
+
     ListErrors error = ListErrors::NO_ERR;
-    if (list->freeBlockHead == 0)
-        error = ListCapacityIncrease(list);
+    error            = GetPosForNewVal(list, &newValPos);
 
     if (error != ListErrors::NO_ERR)
         return error;
-    
-    const size_t newValPos = list->freeBlockHead;
-    DeleteFreeBlock(list);
-    *insertedValPos        = newValPos;
+
+    *insertedValPos  = newValPos;
 
     ListElemInit(&list->data[newValPos], 
                   value, list->data[anchorPos].prevPos, anchorPos);
@@ -311,6 +324,7 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     list->size++;
 
     LIST_CHECK(list);
+
     return ListErrors::NO_ERR;
 }
 
@@ -364,7 +378,7 @@ void ListElemInit(ListElemType* elem, const int value,
 {
     assert(elem);
 
-    elem->value     = value;
+    elem->value   = value;
     elem->prevPos = prevPos;
     elem->nextPos = nextPos;
 }
@@ -414,7 +428,7 @@ static inline void DeleteFreeBlock(ListType* list)
     assert(list->freeBlockHead != 0);
 
     list->data[list->freeBlockHead].value = POISON;
-    list->freeBlockHead = list->data[list->freeBlockHead].nextPos;
+               list->freeBlockHead        = list->data[list->freeBlockHead].nextPos;
 
     if (list->freeBlockHead != 0)
         list->data[list->freeBlockHead].prevPos = 0;
@@ -497,7 +511,7 @@ ListErrors ListCapacityDecrease(ListType* list)
     assert(list);
 
     ListRebuild(list);
-    assert(ListGetTail(list) * 4 < list->capacity);
+    assert(ListGetTail(list) * 2 < list->capacity);
 
     list->capacity /= 2;
 
@@ -523,4 +537,22 @@ size_t ListGetTail(const ListType* list)
     assert(list);
 
     return list->data[list->end].prevPos;
+}
+
+static inline ListErrors GetPosForNewVal(ListType* list, size_t* pos)
+{
+    assert(list);
+    assert(pos);
+
+    ListErrors error = ListErrors::NO_ERR;
+    if (list->freeBlockHead == 0)
+        error = ListCapacityIncrease(list);
+
+    if (error != ListErrors::NO_ERR)
+        return error;
+    
+    *pos = list->freeBlockHead;
+    DeleteFreeBlock(list);
+
+    return ListErrors::NO_ERR;
 }
