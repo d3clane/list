@@ -16,13 +16,21 @@ static inline void AddFreeBlock   (ListType* list, const size_t newPos);
 
 static inline ListErrors ListCapacityIncrease(ListType* list);
 
+//-------Graphic dump funcs---------
+
 static inline void CreateImgInLogFile(const size_t imgIndex);
 static inline void BeginDotFile(FILE* outDotFile);
 static inline void EndDotFile  (FILE* outDotFile);
-static inline void CreateMainNodeDotFile(FILE* outDotFile, const ListType* list, const size_t nodeId);
-static inline void CreateAuxiliaryNodesDotFile(FILE* outDotFile, const ListType* list);
 
-static ListErrors inline GetPosForNewVal(ListType* list, size_t* pos);
+static inline void CreateMainNodeDotFile      (FILE* outDotFile, const ListType* list, 
+                                                                 const size_t nodeId);
+static        void CreateMainNodesDotFile     (FILE* outDotFile, const ListType* list);
+static        void CreateMainEdgesDotFile     (FILE* outDotFile, const ListType* list);
+
+static inline void CreateAuxiliaryInfoDotFile (FILE* outDotFile, const ListType* list);
+static        void CreateFictiousEdgesDotFile (FILE* outDotFile, const ListType* list);
+
+static inline ListErrors GetPosForNewVal(ListType* list, size_t* pos);
 
 #define LIST_CHECK(list)                    \
 do                                          \
@@ -68,14 +76,13 @@ ListErrors ListDtor(ListType* list)
 {
     assert(list);
 
+    list->end = list->freeBlockHead = 0;
+    list->capacity = list->size = 0;
+
     if (list->data != nullptr)
         free(list->data);
 
     list->data = nullptr;
-    list->end = list->freeBlockHead = 0;
-
-    list->capacity = list->size = 0;
-
     return ListErrors::NO_ERR;
 }
 
@@ -239,7 +246,13 @@ static inline void CreateMainNodeDotFile(FILE* outDotFile, const ListType* list,
                         list->data[nodeId].prevPos);    
 }
 
-static inline void CreateAuxiliaryNodesDotFile(FILE* outDotFile, const ListType* list)
+static void CreateMainNodesDotFile(FILE* outDotFile, const ListType* list)
+{
+    for (size_t i = 0; i < list->capacity; ++i)
+        CreateMainNodeDotFile(outDotFile, list, i);  
+}
+
+static inline void CreateAuxiliaryInfoDotFile(FILE* outDotFile, const ListType* list)
 {
     fprintf(outDotFile, "node[shape = octagon, style = \"filled\", fillcolor = \"lightgray\"];\n");
     fprintf(outDotFile, "edge[color = \"darkgreen\"];\n");
@@ -253,6 +266,28 @@ static inline void CreateAuxiliaryNodesDotFile(FILE* outDotFile, const ListType*
                         list->capacity, list->size);   
 }
 
+static void CreateFictiousEdgesDotFile(FILE* outDotFile, const ListType* list)
+{
+    assert(outDotFile);
+    assert(list);
+
+    fprintf(outDotFile, "node0");
+    for (size_t i = 1; i < list->capacity; ++i)
+        fprintf(outDotFile, "->node%zu", i);
+    fprintf(outDotFile, "[color=\"#31353b\", weight = 1, fontcolor=\"blue\",fontsize=78];\n");
+}
+
+static void CreateMainEdgesDotFile(FILE* outDotFile, const ListType* list)
+{
+    assert(outDotFile);
+    assert(list);
+
+    fprintf(outDotFile, "edge[color=\"red\", fontsize=12, constraint=false];\n");
+
+    for (size_t i = 0; i < list->capacity; ++i)
+        fprintf(outDotFile, "node%zu->node%zu;\n", i, list->data[i].nextPos);
+}
+
 void ListGraphicDump(const ListType* list)
 {
     assert(list);
@@ -260,35 +295,21 @@ void ListGraphicDump(const ListType* list)
     static const char* dotFileName = "list.dot";
     FILE* outDotFile = fopen(dotFileName, "w");
 
+    if (outDotFile == nullptr)
+        return;
+
     BeginDotFile(outDotFile);
 
-    for (size_t i = 0; i < list->capacity; ++i)
-        CreateMainNodeDotFile(outDotFile, list, i);
-
-    fprintf(outDotFile, "edge[color=\"#31353b\", weight = 1, fontcolor=\"blue\",fontsize=78];\n");
-
-    //--------White arrows----------
-
-    fprintf(outDotFile, "node0");
-    for (size_t i = 1; i < list->capacity; ++i)
-        fprintf(outDotFile, "->node%zu", i);
-    fprintf(outDotFile, ";\n");
-
-    //-------List printing---------
-
-    fprintf(outDotFile, "edge[color=\"red\", fontsize=12, constraint=false];\n");
-
-    for (size_t i = 0; i < list->capacity; ++i)
-        fprintf(outDotFile, "node%zu->node%zu;\n", i, list->data[i].nextPos);
-
-    CreateAuxiliaryNodesDotFile(outDotFile, list);
+    CreateMainNodesDotFile     (outDotFile, list);
+    CreateFictiousEdgesDotFile (outDotFile, list);
+    CreateMainEdgesDotFile     (outDotFile, list);
+    CreateAuxiliaryInfoDotFile (outDotFile, list);
 
     EndDotFile(outDotFile);
 
     fclose(outDotFile);
 
     static size_t imgIndex = 0;
-
     CreateImgInLogFile(imgIndex);
     imgIndex++;
 }
