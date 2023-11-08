@@ -329,7 +329,6 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     LIST_CHECK(list);
     
     size_t newValPos = 0;
-
     ListErrors error = ListErrors::NO_ERR;
                error = GetPosForNewVal(list, &newValPos);
 
