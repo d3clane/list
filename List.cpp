@@ -336,8 +336,6 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     if (error != ListErrors::NO_ERR)
         return error;
 
-    *insertedValPos  = newValPos;
-
     ListElemInit(&list->data[newValPos], 
                   value, list->data[anchorPos].prevPos, anchorPos);
 
@@ -349,6 +347,8 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     list->size++;
 
     LIST_CHECK(list);
+
+    *insertedValPos  = newValPos;
 
     return ListErrors::NO_ERR;
 }
@@ -372,10 +372,37 @@ ListErrors ListErase (ListType* list, const size_t anchorPos)
     return ListErrors::NO_ERR;
 }
 
-ListErrors ListGetElem(ListType* list, size_t pos, int* elemValue)
+ListErrors ListGetNextElem(ListType* list, size_t pos, size_t *nextElemPos)
 {
     assert(list);
-    assert(elemValue);
+    assert(nextElemPos);
+
+    LIST_CHECK(list);
+
+    *nextElemPos = list->data[pos].nextPos;
+
+    return ListErrors::NO_ERR;
+}
+
+ListErrors ListGetPrevElem(ListType* list, size_t pos, size_t *prevElemPos)
+{
+    assert(list);
+    assert(prevElemPos);
+
+    LIST_CHECK(list);
+
+    *prevElemPos = list->data[pos].prevPos;
+
+    return ListErrors::NO_ERR;
+}
+
+ListErrors ListGetElemValue(ListType* list, size_t pos, int* elemValue)
+{
+    assert(list);
+    assert(elemValue);  
+
+    if (pos == 0)
+        return ListErrors::TRYING_TO_GET_NULL_ELEMENT;
 
     LIST_CHECK(list);
 
@@ -387,6 +414,9 @@ ListErrors ListGetElem(ListType* list, size_t pos, int* elemValue)
 ListErrors ListSetElem(ListType* list, size_t pos, int  newElemValue)
 {
     assert(list);
+
+    if (pos == 0)
+        return ListErrors::TRYING_TO_CHANGE_NULL_ELEMENT;
 
     LIST_CHECK(list);
 

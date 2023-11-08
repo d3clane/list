@@ -34,6 +34,9 @@ enum class ListErrors
 
     INVALID_NULLPTR,
     INVALID_DATA,
+
+    TRYING_TO_GET_NULL_ELEMENT,
+    TRYING_TO_CHANGE_NULL_ELEMENT,
 };
 
 ListErrors ListCtor  (ListType* list, const size_t capacity = 0);
@@ -46,8 +49,10 @@ ListErrors ListErase (ListType* list, const size_t anchorPos);
 
 ListErrors ListCapacityDecrease(ListType* list);
 
-ListErrors ListGetElem(ListType* list, size_t pos, int* elemValue);
-ListErrors ListSetElem(ListType* list, size_t pos, int  newElemValue);
+ListErrors ListGetNextElem (ListType* list, size_t pos, size_t *nextElemPos);
+ListErrors ListGetPrevElem (ListType* list, size_t pos, size_t *prevElemPos);
+ListErrors ListGetElemValue(ListType* list, size_t pos, int* elemValue);
+ListErrors ListSetElemValue(ListType* list, size_t pos, int  newElemValue);
 
 size_t ListGetHead(const ListType* list);
 size_t ListGetTail(const ListType* list);
