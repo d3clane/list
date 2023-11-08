@@ -22,16 +22,16 @@ static        ListErrors ListRebuild(ListType* list);
 //-------Graphic dump funcs---------
 
 static inline void CreateImgInLogFile(const size_t imgIndex);
-static inline void BeginDotFile(FILE* outDotFile);
-static inline void EndDotFile  (FILE* outDotFile);
+static inline void DotFileBegin(FILE* outDotFile);
+static inline void DotFileEnd  (FILE* outDotFile);
 
-static inline void CreateMainNodeDotFile      (FILE* outDotFile, const ListType* list, 
+static inline void DotFileCreateMainNode      (FILE* outDotFile, const ListType* list, 
                                                                  const size_t nodeId);
-static        void CreateMainNodesDotFile     (FILE* outDotFile, const ListType* list);
-static        void CreateMainEdgesDotFile     (FILE* outDotFile, const ListType* list);
+static        void DotFileCreateMainNodes     (FILE* outDotFile, const ListType* list);
+static        void DotFileCreateMainEdges     (FILE* outDotFile, const ListType* list);
 
-static inline void CreateAuxiliaryInfoDotFile (FILE* outDotFile, const ListType* list);
-static        void CreateFictiousEdgesDotFile (FILE* outDotFile, const ListType* list);
+static inline void DotFileCreateAuxiliaryInfo (FILE* outDotFile, const ListType* list);
+static        void DotFileCreateFictiousEdges (FILE* outDotFile, const ListType* list);
 
 static inline ListErrors GetPosForNewVal(ListType* list, size_t* pos);
 
@@ -225,17 +225,17 @@ static inline void CreateImgInLogFile(const size_t imgIndex)
     Log(commandName);
 }
 
-static inline void BeginDotFile(FILE* outDotFile)
+static inline void DotFileBegin(FILE* outDotFile)
 {
     fprintf(outDotFile, "digraph G{\nrankdir=LR;\ngraph [bgcolor=\"#31353b\"];\n");
 }
 
-static inline void EndDotFile(FILE* outDotFile)
+static inline void DotFileEnd(FILE* outDotFile)
 {
     fprintf(outDotFile, "\n}\n");
 }
 
-static inline void CreateMainNodeDotFile(FILE* outDotFile, const ListType* list, const size_t nodeId)
+static inline void DotFileCreateMainNode(FILE* outDotFile, const ListType* list, const size_t nodeId)
 {
     fprintf(outDotFile, "node%zu"
                         "[shape=Mrecord, style=filled, fillcolor=\"#7293ba\","
@@ -250,13 +250,13 @@ static inline void CreateMainNodeDotFile(FILE* outDotFile, const ListType* list,
                         list->data[nodeId].prevPos);    
 }
 
-static void CreateMainNodesDotFile(FILE* outDotFile, const ListType* list)
+static void DotFileCreateMainNodes(FILE* outDotFile, const ListType* list)
 {
     for (size_t i = 0; i < list->capacity; ++i)
-        CreateMainNodeDotFile(outDotFile, list, i);  
+        DotFileCreateMainNode(outDotFile, list, i);  
 }
 
-static inline void CreateAuxiliaryInfoDotFile(FILE* outDotFile, const ListType* list)
+static inline void DotFileCreateAuxiliaryInfo(FILE* outDotFile, const ListType* list)
 {
     fprintf(outDotFile, "node[shape = octagon, style = \"filled\", fillcolor = \"lightgray\"];\n");
     fprintf(outDotFile, "edge[color = \"lightgreen\"];\n");
@@ -270,7 +270,7 @@ static inline void CreateAuxiliaryInfoDotFile(FILE* outDotFile, const ListType* 
                         list->capacity, list->size);   
 }
 
-static void CreateFictiousEdgesDotFile(FILE* outDotFile, const ListType* list)
+static void DotFileCreateFictiousEdges(FILE* outDotFile, const ListType* list)
 {
     assert(outDotFile);
     assert(list);
@@ -281,7 +281,7 @@ static void CreateFictiousEdgesDotFile(FILE* outDotFile, const ListType* list)
     fprintf(outDotFile, "[color=\"#31353b\", weight = 1, fontcolor=\"blue\",fontsize=78];\n");
 }
 
-static void CreateMainEdgesDotFile(FILE* outDotFile, const ListType* list)
+static void DotFileCreateMainEdges(FILE* outDotFile, const ListType* list)
 {
     assert(outDotFile);
     assert(list);
@@ -302,14 +302,14 @@ void ListGraphicDump(const ListType* list)
     if (outDotFile == nullptr)
         return;
 
-    BeginDotFile(outDotFile);
+    DotFileBegin(outDotFile);
 
-    CreateMainNodesDotFile     (outDotFile, list);
-    CreateFictiousEdgesDotFile (outDotFile, list);
-    CreateMainEdgesDotFile     (outDotFile, list);
-    CreateAuxiliaryInfoDotFile (outDotFile, list);
+    DotFileCreateMainNodes     (outDotFile, list);
+    DotFileCreateFictiousEdges (outDotFile, list);
+    DotFileCreateMainEdges     (outDotFile, list);
+    DotFileCreateAuxiliaryInfo (outDotFile, list);
 
-    EndDotFile(outDotFile);
+    DotFileEnd(outDotFile);
 
     fclose(outDotFile);
 
