@@ -5,16 +5,19 @@
 #include "string.h"
 
 static const size_t MinCapacity    = 16;
-static const int POISON            = 0xDEAD;
+static const int    POISON         = 0xDEAD;
 
-static inline void ListDataCtor   (ListType* list);
-static inline void ListDataInit   (ListElemType* list, 
-                                   const size_t leftBorder, const size_t rightBorder,
-                                   const size_t listCapacity);
+static inline void ListDataInit(ListElemType* list, 
+                                const size_t leftBorder, const size_t rightBorder,
+                                const size_t listCapacity);
+static void ListElemInit(ListElemType* elem, const int value, 
+                                             const size_t prevPos, 
+                                             const size_t nextPos);
 static inline void DeleteFreeBlock(ListType* list);
 static inline void AddFreeBlock   (ListType* list, const size_t newPos);
 
 static inline ListErrors ListCapacityIncrease(ListType* list);
+static        ListErrors ListRebuild(ListType* list);
 
 //-------Graphic dump funcs---------
 
@@ -62,8 +65,9 @@ ListErrors ListCtor(ListType* list, const size_t listStandardCapacity)
 
     list->capacity = capacity;
 
-    ListDataCtor(list);
-
+    ListElemInit(&list->data[0], POISON, 0, 0);
+    ListDataInit(list->data, 1, list->capacity, list->capacity);
+    
     list->end            = 0;
     list->freeBlockHead  = 1;
 
@@ -214,7 +218,7 @@ static inline void CreateImgInLogFile(const size_t imgIndex)
     static const size_t     maxCommandLength  = 128;
     static char commandName[maxCommandLength] = "";
     snprintf(commandName, maxCommandLength, "dot list.dot -T png -o %s", imgName);
-
+    //TODO: fork + exec
     system(commandName);
 
     snprintf(commandName, maxCommandLength, "<img src = \"%s\">", imgName);    
@@ -255,7 +259,7 @@ static void CreateMainNodesDotFile(FILE* outDotFile, const ListType* list)
 static inline void CreateAuxiliaryInfoDotFile(FILE* outDotFile, const ListType* list)
 {
     fprintf(outDotFile, "node[shape = octagon, style = \"filled\", fillcolor = \"lightgray\"];\n");
-    fprintf(outDotFile, "edge[color = \"darkgreen\"];\n");
+    fprintf(outDotFile, "edge[color = \"lightgreen\"];\n");
 
     fprintf(outDotFile, "head->node%zu;\n", ListGetHead(list));
     fprintf(outDotFile, "tail->node%zu;\n", ListGetTail(list));
@@ -327,7 +331,7 @@ ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value,
     size_t newValPos = 0;
 
     ListErrors error = ListErrors::NO_ERR;
-    error            = GetPosForNewVal(list, &newValPos);
+               error = GetPosForNewVal(list, &newValPos);
 
     if (error != ListErrors::NO_ERR)
         return error;
@@ -368,6 +372,31 @@ ListErrors ListErase (ListType* list, const size_t anchorPos)
     return ListErrors::NO_ERR;
 }
 
+ListErrors ListGetElem(ListType* list, size_t pos, int* elemValue)
+{
+    assert(list);
+    assert(elemValue);
+
+    LIST_CHECK(list);
+
+    *elemValue = list->data[pos].value;
+
+    return ListErrors::NO_ERR;
+}
+
+ListErrors ListSetElem(ListType* list, size_t pos, int  newElemValue)
+{
+    assert(list);
+
+    LIST_CHECK(list);
+
+    list->data[pos].value = newElemValue;
+
+    LIST_CHECK(list);
+
+    return ListErrors::NO_ERR;
+}
+
 static inline void ListDataInit(ListElemType* list, 
                                 const size_t leftBorder, const size_t rightBorder,
                                 const size_t listCapacity)
@@ -382,15 +411,6 @@ static inline void ListDataInit(ListElemType* list,
 
     if (rightBorder == listCapacity)
         ListElemInit(&list[listCapacity - 1], POISON, listCapacity - 2, 0);  
-}
-
-static inline void ListDataCtor(ListType* list)
-{
-    assert(list);
-
-    ListElemInit(&list->data[0], POISON, 0, 0);
-
-    ListDataInit(list->data, 1, list->capacity, list->capacity);
 }
 
 void ListElemInit(ListElemType* elem, const int value, 
@@ -495,7 +515,7 @@ static inline ListErrors ListCapacityIncrease(ListType* list)
     return ListErrors::NO_ERR;
 }
 
-ListErrors ListRebuild(ListType* list)
+static ListErrors ListRebuild(ListType* list)
 {
     assert(list);
 
@@ -503,6 +523,7 @@ ListErrors ListRebuild(ListType* list)
     ListCtor(&newList, list->capacity); 
 
     //-----rebuild used values-------
+
     size_t posInNewList = 1;
 
     size_t listTail = ListGetTail(list);
@@ -521,7 +542,7 @@ ListErrors ListRebuild(ListType* list)
     newList.size = list->size;
 
     ListDtor(list);
-    ListCopy(&newList, list);
+    *list = newList;
 
     //NO newList Dtor because there is calloced memory used for list and nothing more dynamic
     return ListErrors::NO_ERR;

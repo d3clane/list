@@ -1,7 +1,7 @@
 #ifndef LIST_H
 #define LIST_H
 
-#include <stdio.h>
+#include <stddef.h>
 #include <stdint.h>
 
 struct ListElemType
@@ -36,10 +36,6 @@ enum class ListErrors
     INVALID_DATA,
 };
 
-void ListElemInit(ListElemType* elem, const int value, 
-                                      const size_t prevPos, 
-                                      const size_t nextPos);
-
 ListErrors ListCtor  (ListType* list, const size_t capacity = 0);
 ListErrors ListCopy  (const ListType* source, ListType* target);
 ListErrors ListDtor  (ListType* list);
@@ -47,9 +43,11 @@ ListErrors ListVerify(ListType* list);
 ListErrors ListInsert(ListType* list, const size_t anchorPos, const int value, 
                       size_t* insertedValPos);
 ListErrors ListErase (ListType* list, const size_t anchorPos);
-ListErrors ListRebuild(ListType* list);
 
 ListErrors ListCapacityDecrease(ListType* list);
+
+ListErrors ListGetElem(ListType* list, size_t pos, int* elemValue);
+ListErrors ListSetElem(ListType* list, size_t pos, int  newElemValue);
 
 size_t ListGetHead(const ListType* list);
 size_t ListGetTail(const ListType* list);
